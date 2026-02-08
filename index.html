@@ -1,203 +1,127 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="UTF-8">
-<title>Magic Stacker</title>
+    <meta charset="UTF-8">
+    <title>Magic Stacker: Absolute Fix</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+        /* 꼼수 1: HTML 자체에 배경을 박아버림 */
+        html, body { 
+            margin: 0; padding: 0; width: 100%; height: 100%; 
+            background-color: #0d0d2b; /* 이미지 안 뜰 때를 대비한 딥 블루 */
+            background-image: url('background.png'); 
+            background-size: cover; 
+            background-position: center;
+            background-repeat: no-repeat;
+            overflow: hidden; 
+            font-family: 'Press Start 2P', cursive; 
+        }
 
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+        /* 캔버스가 배경을 가리지 않도록 투명하게 고정 */
+        canvas { 
+            display: block; 
+            background-color: transparent !important; 
+        }
 
-html, body {
-    margin: 0;
-    padding: 0;
-    width: 100%;
-    height: 100%;
-    overflow: hidden;
-    font-family: 'Press Start 2P', monospace;
-    background: #000;
-}
+        #ui { 
+            position: absolute; top: 40px; width: 100%; text-align: center; 
+            color: #fff; pointer-events: none; z-index: 10; 
+        }
 
-/* ✅ 배경은 body 바깥 개념으로 고정 */
-#background {
-    position: fixed;
-    inset: 0;
-    background: url('background.png') center / cover no-repeat;
-    z-index: 0;
-}
+        .logo {
+            font-size: 28px; color: #ffd700;
+            text-shadow: 4px 4px #8b4513, 0 0 15px rgba(255, 215, 0, 0.6);
+            margin-bottom: 15px;
+        }
 
-/* 어둡게 덮는 오버레이 */
-#background::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: radial-gradient(circle, rgba(0,0,0,0) 40%, rgba(0,0,0,0.75) 100%);
-}
+        .score-box {
+            background: rgba(44, 30, 18, 0.8);
+            padding: 10px 25px; border: 3px solid #ffd700;
+            display: inline-block;
+        }
 
-/* ✅ Matter.js 전용 레이어 */
-#game {
-    position: fixed;
-    inset: 0;
-    z-index: 1;
-}
+        #msg { 
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            text-align: center; color: white; display: none; z-index: 100;
+            background: rgba(60, 30, 10, 0.95); padding: 50px; 
+            border: 6px double #ffd700;
+        }
 
-canvas {
-    image-rendering: pixelated;
-}
-
-/* UI */
-#ui {
-    position: fixed;
-    top: 24px;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 2;
-    color: #eaffff;
-    text-align: center;
-    pointer-events: none;
-}
-
-.logo {
-    font-size: 18px;
-    letter-spacing: 2px;
-    opacity: 0.85;
-    margin-bottom: 10px;
-}
-
-.score {
-    font-size: 13px;
-    padding: 10px 18px;
-    border: 1px solid rgba(127,255,212,0.4);
-    background: rgba(0,0,0,0.5);
-    color: #7fffd4;
-    display: inline-block;
-}
-
-/* Game Over */
-#msg {
-    position: fixed;
-    inset: 0;
-    display: none;
-    z-index: 3;
-    background: rgba(0,0,0,0.75);
-    color: #fff;
-}
-
-#msg .panel {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background: rgba(10,15,25,0.95);
-    padding: 40px 50px;
-    border: 1px solid rgba(255,255,255,0.2);
-    text-align: center;
-}
-
-#msg h2 {
-    margin: 0 0 20px;
-    font-size: 18px;
-    color: #ff6b6b;
-}
-
-#msg p {
-    margin-bottom: 25px;
-    font-size: 12px;
-}
-
-button {
-    font-family: inherit;
-    font-size: 12px;
-    padding: 12px 24px;
-    background: #7fffd4;
-    border: none;
-    cursor: pointer;
-}
-</style>
+        button { 
+            margin-top: 20px; padding: 15px 35px; background: #ffd700; 
+            color: #4a2511; border: none; cursor: pointer; 
+            font-family: inherit; font-size: 18px;
+        }
+    </style>
 </head>
-
 <body>
-
-<div id="background"></div>
-<div id="game"></div>
 
 <div id="ui">
     <div class="logo">MAGIC STACKER</div>
-    <div class="score">SCORE <span id="scoreText">00</span></div>
+    <div class="score-box">SCORE: <span id="scoreText">00</span></div>
 </div>
 
 <div id="msg">
-    <div class="panel">
-        <h2>STACK OVERLOAD</h2>
-        <p>FINAL SCORE: <span id="finalScore">0</span></p>
-        <button onclick="location.reload()">RESTART</button>
-    </div>
+    <h2 style="color: #ff4d4d; margin-top: 0;">STACK OVERLOAD!</h2>
+    <p>최종 점수: <span id="finalScore">0</span></p>
+    <button onclick="location.reload()">RE-PLAY</button>
 </div>
 
 <script>
 const { Engine, Render, Runner, Bodies, Composite, Events } = Matter;
-
 const engine = Engine.create();
 const world = engine.world;
 
-/* ✅ canvas를 game div 안에만 생성 */
+// 꼼수 2: 렌더러 생성 시 배경을 명시적으로 'transparent'로 박음
 const render = Render.create({
-    element: document.getElementById('game'),
+    element: document.body,
     engine: engine,
     options: {
         width: window.innerWidth,
         height: window.innerHeight,
         wireframes: false,
-        background: 'transparent'
+        background: 'transparent' 
     }
 });
 
 Render.run(render);
-Runner.run(Runner.create(), engine);
+const runner = Runner.create();
+Runner.run(runner, engine);
 
-/* ✅ 이전 버전 효과음 그대로 */
+// 바닥 (ground.png)
+const ground = Bodies.rectangle(window.innerWidth/2, window.innerHeight - 80, 500, 80, { 
+    isStatic: true, 
+    render: { sprite: { texture: 'ground.png' } } 
+});
+Composite.add(world, ground);
+
+let score = 0;
+let isGameOver = false;
+
+// 효과음
 function playSound(f) {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
-    osc.type = 'square';
-    osc.frequency.value = f;
-    osc.connect(gain);
-    gain.connect(ctx.destination);
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.frequency.value = f; osc.type = 'square';
     osc.start();
     gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.1);
     osc.stop(ctx.currentTime + 0.1);
 }
 
-const ground = Bodies.rectangle(
-    window.innerWidth / 2,
-    window.innerHeight - 80,
-    520,
-    80,
-    {
-        isStatic: true,
-        render: {
-            sprite: { texture: 'ground.png' }
-        }
-    }
-);
-Composite.add(world, ground);
-
-let score = 0;
-let gameOver = false;
-
-window.addEventListener('mousedown', e => {
-    if (gameOver) return;
+window.addEventListener('mousedown', (e) => {
+    if (isGameOver) return;
 
     const id = Math.floor(Math.random() * 5) + 1;
-    const size = 60 + Math.random() * 40;
+    const size = 70 + Math.random() * 30;
 
     const item = Bodies.rectangle(e.clientX, 100, size, size, {
-        friction: 0.8,
-        restitution: 0.1,
+        restitution: 0.1, friction: 0.8,
         render: {
-            sprite: {
+            sprite: { 
                 texture: `item${id}.png`,
                 xScale: size / 100,
                 yScale: size / 100
@@ -206,19 +130,20 @@ window.addEventListener('mousedown', e => {
     });
 
     Composite.add(world, item);
+    playSound(400 + (score * 50));
     score++;
-    document.getElementById('scoreText').innerText =
-        score.toString().padStart(2, '0');
-    playSound(400 + score * 50);
+    document.getElementById('scoreText').innerText = score.toString().padStart(2, '0');
 });
 
 Events.on(engine, 'afterUpdate', () => {
     Composite.allBodies(world).forEach(b => {
-        if (!b.isStatic && b.position.y > window.innerHeight + 150 && !gameOver) {
-            gameOver = true;
-            document.getElementById('finalScore').innerText = score;
-            document.getElementById('msg').style.display = 'block';
-            playSound(150);
+        if (!b.isStatic && b.position.y > window.innerHeight + 100) {
+            if (!isGameOver) {
+                isGameOver = true;
+                document.getElementById('finalScore').innerText = score;
+                document.getElementById('msg').style.display = 'block';
+                playSound(150);
+            }
         }
     });
 });
@@ -228,6 +153,5 @@ window.addEventListener('resize', () => {
     render.canvas.height = window.innerHeight;
 });
 </script>
-
 </body>
 </html>
