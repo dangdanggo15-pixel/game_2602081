@@ -2,30 +2,29 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>Magic Stacker: Pixel Edition</title>
+    <title>Magic Stacker: Pixel Final</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
 
         body { 
-            margin: 0; overflow: hidden; background: #000; 
-            font-family: 'Press Start 2P', cursive; /* 픽셀 전용 폰트 */
+            margin: 0; overflow: hidden; background: #1a1a2e; 
+            font-family: 'Press Start 2P', cursive; 
         }
-        
-        /* 배경 레이어 (bg.png 대신 background.png 사용 시 여기서 수정) */
-        #bg-layer {
+
+        /* 배경 이미지 레이어: z-index를 -2로 설정하여 가장 뒤로 보냄 */
+        #bg-image {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: url('background.png') no-repeat center center;
             background-size: cover;
-            z-index: -1;
-            filter: brightness(0.6) contrast(1.2); /* 배경을 살짝 어둡게 해서 UI 강조 */
+            z-index: -2;
         }
 
-        /* 비네팅 효과 (가장자리를 어둡게 해서 분위기 조성) */
-        .vignette {
+        /* 화면을 더 깊이감 있게 만드는 오버레이 */
+        .overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            box-shadow: inset 0 0 150px rgba(0,0,0,0.8);
-            pointer-events: none; z-index: 1;
+            background: radial-gradient(circle, rgba(0,0,0,0) 40%, rgba(0,0,0,0.7) 100%);
+            pointer-events: none; z-index: -1;
         }
 
         #ui { 
@@ -33,69 +32,68 @@
             color: #fff; pointer-events: none; z-index: 10; 
         }
 
-        /* 세련된 타이틀 로고 */
         .logo {
-            font-size: 32px;
-            color: #ffd700;
-            text-shadow: 4px 4px #8b4513, 0 0 20px rgba(255, 215, 0, 0.5);
-            margin-bottom: 10px;
-            letter-spacing: -2px;
+            font-size: 28px; color: #ffd700;
+            text-shadow: 4px 4px #8b4513, 0 0 15px rgba(255, 215, 0, 0.6);
+            margin-bottom: 15px;
         }
 
-        .score-board {
-            background: rgba(0,0,0,0.5);
-            padding: 10px 20px;
-            border-radius: 10px;
-            display: inline-block;
-            border: 2px solid #ffd700;
+        .score-box {
+            background: rgba(44, 30, 18, 0.8);
+            padding: 10px 25px; border: 3px solid #ffd700;
+            display: inline-block; box-shadow: 0 4px 0 #8b4513;
         }
 
         #msg { 
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
             text-align: center; color: white; display: none; z-index: 100;
-            background: rgba(139, 69, 19, 0.9); padding: 40px; border: 4px solid #ffd700;
+            background: rgba(60, 30, 10, 0.95); padding: 50px; 
+            border: 6px double #ffd700; box-shadow: 0 0 50px #000;
         }
 
         button { 
-            padding: 15px 30px; background: #ffd700; color: #8b4513; 
-            border: none; cursor: pointer; font-family: inherit; font-size: 16px;
-            box-shadow: 0 5px #b8860b; transition: 0.1s;
+            margin-top: 20px; padding: 15px 35px; background: #ffd700; 
+            color: #4a2511; border: none; cursor: pointer; 
+            font-family: inherit; font-size: 18px; font-weight: bold;
+            box-shadow: 0 6px #b8860b;
         }
-        button:active { transform: translateY(5px); box-shadow: 0 0px #b8860b; }
+        button:hover { background: #ffea00; }
+        button:active { transform: translateY(3px); box-shadow: 0 3px #b8860b; }
     </style>
 </head>
 <body>
 
-<div id="bg-layer"></div>
-<div class="vignette"></div>
+<div id="bg-image"></div>
+<div class="overlay"></div>
 
 <div id="ui">
     <div class="logo">MAGIC STACKER</div>
-    <div class="score-board">SCORE: <span id="scoreText">0</span></div>
+    <div class="score-box">SCORE: <span id="scoreText">00</span></div>
 </div>
 
 <div id="msg">
-    <h2 style="font-size: 24px;">CASTING FAILED!</h2>
-    <p>쌓은 재료 수: <span id="finalScore">0</span></p>
-    <button onclick="location.reload()">RETRY</button>
+    <h2 style="color: #ff4d4d; margin-top: 0;">STACK OVERLOAD!</h2>
+    <p>최종 점수: <span id="finalScore">0</span></p>
+    <button onclick="location.reload()">RE-CASTING</button>
 </div>
 
-<canvas id="gameCanvas"></canvas>
-
 <script>
+/**
+ * 검토 결과: Render 옵션에서 pixelated 처리를 추가하고 
+ * 배경 투명도 설정을 강화하여 background.png가 잘 보이게 수정함.
+ */
 const { Engine, Render, Runner, Bodies, Composite, Events } = Matter;
 const engine = Engine.create();
 const world = engine.world;
 
 const render = Render.create({
     element: document.body,
-    canvas: document.getElementById('gameCanvas'),
     engine: engine,
     options: {
         width: window.innerWidth,
         height: window.innerHeight,
         wireframes: false,
-        background: 'transparent'
+        background: 'transparent' // 캔버스를 투명하게 하여 배경 이미지가 투사되게 함
     }
 });
 
@@ -103,60 +101,64 @@ Render.run(render);
 const runner = Runner.create();
 Runner.run(runner, engine);
 
-// 바닥 설정 (ground.png 사용)
+// 도트풍 게임을 위해 캔버스 앨리어싱 방지 (더 선명하게)
+render.canvas.style.imageRendering = 'pixelated';
+
+// 바닥 생성 (ground.png)
 const ground = Bodies.rectangle(window.innerWidth/2, window.innerHeight - 80, 500, 80, { 
     isStatic: true, 
-    render: { sprite: { texture: 'ground.png' } } 
+    render: { 
+        sprite: { texture: 'ground.png' } 
+    } 
 });
 Composite.add(world, ground);
 
 let score = 0;
 let isGameOver = false;
 
-function playBeep(freq) {
-    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    const oscillator = audioCtx.createOscillator();
-    const gainNode = audioCtx.createGain();
-    oscillator.connect(gainNode);
-    gainNode.connect(audioCtx.destination);
-    oscillator.frequency.value = freq;
-    oscillator.start();
-    gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 0.1);
-    oscillator.stop(audioCtx.currentTime + 0.1);
+// 효과음 생성기
+function playSound(f) {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.frequency.value = f; osc.type = 'square'; // 도트 감성 사각파
+    osc.start();
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.1);
+    osc.stop(ctx.currentTime + 0.1);
 }
 
 window.addEventListener('mousedown', (e) => {
     if (isGameOver) return;
 
-    const itemNum = Math.floor(Math.random() * 5) + 1;
-    const itemSize = 70 + Math.random() * 30;
+    const id = Math.floor(Math.random() * 5) + 1;
+    const size = 60 + Math.random() * 40;
 
-    const item = Bodies.rectangle(e.clientX, 100, itemSize, itemSize, {
-        restitution: 0.2,
-        friction: 0.6,
+    const item = Bodies.rectangle(e.clientX, 100, size, size, {
+        restitution: 0.1, friction: 0.8,
         render: {
             sprite: { 
-                texture: `item${itemNum}.png`,
-                xScale: itemSize / 100,
-                yScale: itemSize / 100
+                texture: `item${id}.png`,
+                xScale: size / 100,
+                yScale: size / 100
             }
         }
     });
 
     Composite.add(world, item);
-    playBeep(300 + (score * 30));
+    playSound(400 + (score * 50));
     score++;
-    document.getElementById('scoreText').innerText = score;
+    document.getElementById('scoreText').innerText = score.toString().padStart(2, '0');
 });
 
 Events.on(engine, 'afterUpdate', () => {
-    Composite.allBodies(world).forEach(body => {
-        if (!body.isStatic && body.position.y > window.innerHeight) {
+    Composite.allBodies(world).forEach(b => {
+        if (!b.isStatic && b.position.y > window.innerHeight + 100) {
             if (!isGameOver) {
                 isGameOver = true;
                 document.getElementById('finalScore').innerText = score;
                 document.getElementById('msg').style.display = 'block';
-                playBeep(150);
+                playSound(150);
             }
         }
     });
